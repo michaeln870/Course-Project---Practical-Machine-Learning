@@ -1,0 +1,124 @@
+---
+title: "Course project - Machine learning"
+author: "Michael N."
+date: "2/3/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, include=FALSE}
+setwd("C:/Users/micha/Desktop/Online courses/Coursera - Data Science Specialization (JHU)/Module 8 - Practical Machine Learning")
+```
+
+## Excutive summary
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+## Exploratory Data analysis
+```{r, echo=FALSE}
+library(caret)
+library(rattle)
+```
+```{r}
+training <- read.csv("pml-training.csv")
+testing <- read.csv("pml-testing.csv")
+```
+
+```{r}
+dim(training)
+```
+The dataset in composed of 19622 observations and 160 variables. If we explore the dataset, we would notice than many column have NAs and some with empty values that aren't NAs, which can't be used for predicting. First step would thus be to clean the dataset and keep only the columns that are useful.
+
+## Data Preparation
+
+### Data Cleaning
+
+Now let's reduce the size of the dataset as it is quite large and many variables aren't useful for our prediction, such as NAs or empty values, low variability variables and extraneous variables (first 6 columns).
+```{r}
+# Removing NAs
+NAs <- which(colSums(is.na(training)) != 0)
+training <- training[ ,-NAs]
+
+# Removing covariates with little to no variability in them (it also helps in removing columns with empty values)
+nzv <- nearZeroVar(training)
+training <- training[,-nzv]
+
+#Removing extraneous variables
+training <- training[,-c(1:6)]
+
+dim(training)
+```
+
+As we can see we reduced our number of variables from 160 to 53 (including the response variable). This will make model building much more efficient.
+
+### Data slicing 
+
+Now that our dataset is clean, let's partition the training data into a train and test set.
+
+```{r}
+set.seed(1000)
+inTrain <- createDataPartition(training$classe, p=0.7, list=F)
+train <- training[inTrain, ]
+test <- training[-inTrain, ]
+```
+
+
+## Model Building
+
+In this section, I'll build 3 different models and select the most accurate one to predict the testing dataset. The models that I'll try are decision trees, random forest and gradient boosting as they are effective for classification.
+
+### Decision Trees
+
+```{r, cache=TRUE}
+modFitRpart <- train(classe ~., method = "rpart", data=train)
+fancyRpartPlot(modFitRpart$finalModel)
+```
+
+```{r}
+predictRpart <- predict(modFitRpart,newdata=test)
+confusionMatrix(as.factor(test$classe), predictRpart)
+```
+
+### Random Forests
+
+```{r, cache=TRUE}
+modFitRf <- train(classe~., method = "rf", data=train)
+```
+
+```{r}
+predictRf <- predict(modFitRf,newdata=test)
+confusionMatrix(as.factor(test$classe), predictRf)
+```
+
+
+### Gradient Boosting
+```{r, cache=TRUE}
+modFitGbm <- train(classe ~ ., method="gbm",data=train,verbose=FALSE)
+```
+
+```{r, cache=TRUE}
+predictGbm <- predict(modFitGbm,newdata=test)
+confusionMatrix(as.factor(test$classe), predictGbm)
+```
+
+Gradient Boosting did pretty well, with 98.78% accuracy, however it's less than the random forest model. The 
+
+## Conclusion
+
+The decision tree method didn't do a very good job with an accuracy of 49.29%, it didn't even consider the 'D' classe in the prediction. Random forests did much better than decision tree with 99.69% accuracy, this model should be good enough for predicting testing data set. Gradient Boosting on the other hand also performed well with 96.33% accuracy, however it's less than the random forest model. Therefore the model selected for prediction is **random forest**.
+
+
+# Results
+
+```{r}
+# Making sure the testing dataset has the same variables (columns) for prediction
+cols <- intersect(names(train), names(testing))
+
+#Predicting results
+result <- predict(modFitRf, testing[, cols])
+result
+```
