@@ -1,1 +1,1 @@
-# Course-Project---Practical-Machine-Learning
+# Read the .md file for readability
